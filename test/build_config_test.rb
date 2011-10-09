@@ -36,3 +36,41 @@ end
 test "build_config with defaults" do
   assert @test_config_defaults == Redis::SpawnServer.build_config
 end
+
+setup do
+  @test_config_defaults = <<TEST_CONF_END
+port 0
+bind 127.0.0.1
+unixsocket /tmp/redis-spawned.override.sock
+loglevel notice
+logfile /tmp/redis-spawned.override.log
+databases 8
+save 900 1
+save 300 10
+save 100 1000
+save 60 10000
+rdbcompression no
+dbfilename dump.rdb
+dir /tmp/redis-spawned.override.data
+appendonly no
+appendfsync everysec
+vm-enabled no
+hash-max-zipmap-entries 512
+hash-max-zipmap-value 64
+list-max-ziplist-entries 512
+list-max-ziplist-value 64
+set-max-intset-entries 512
+activerehashing yes
+TEST_CONF_END
+end
+  
+test "build_config with overrides" do
+  assert @test_config_defaults == Redis::SpawnServer.build_config(unixsocket:     "/tmp/redis-spawned.override.sock",
+                                                                  logfile:        "/tmp/redis-spawned.override.log",
+                                                                  databases:      8,
+                                                                  save:           ["900 1", "300 10", "100 1000", "60 10000"],
+                                                                  rdbcompression: "no",
+                                                                  dir:            "/tmp/redis-spawned.override.data")
+end
+
+  
