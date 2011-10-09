@@ -76,7 +76,7 @@ class Redis
       File.open(filename, "w") do |file|
         file.write(build_config(server_opts))
       end
-      Dir.mkdir(full_config_hash(server_opts)[:dir])
+      Dir.mkdir(full_config_hash(server_opts)[:dir]) unless Dir.exists?(full_config_hash(server_opts)[:dir])
       filename
     end
 
@@ -90,16 +90,33 @@ class Redis
     def self.spawn(supplied_opts = {})
       default_opts = {
         generated_config_file: "/tmp/redis-spawned.#{Process.pid}.config",
+        cleanup_files:         [:socket, :log, :config],
         server_opts:           {}
       }
       opts = default_opts.merge(supplied_opts)
       
       # If config_file is passed in opts use it as the name of the config file.
       # Otherwise, generate our own
-      config_file = if opts[:config_file]
+      config_file = if opts.has_key?(:config_file)
+        # Don't attempt to cleanup files when supplied with pre-existing
+        # config file unless specifically asked
+        opts[:cleanup_files] = [] unless supplied_opts.has_key?(:cleanup_files)
         opts[:config_file]
       else
         write_config(opts[:generated_config_file], opts[:server_opts])
+      end
+      
+      # Get the filenames of files we need to clean up afterwards
+      # @todo Should break this out in to a separate method
+      cleanup_files = opts[:cleanup_files].map do |file_sym|
+        case file_sym
+          when :socket
+            full_config_hash(opts[:server_opts])[:unixsocket]
+          when :log
+            full_config_hash(opts[:server_opts])[:logfile]
+          when :config
+            config_file
+        end
       end
       
       # Make sure we clean up after our children and avoid a zombie invasion
@@ -109,7 +126,15 @@ class Redis
 
       pid = fork { exec("redis-server #{config_file}") }
       #logger.info("Spawned redis server with PID #{pid}")
-      at_exit { Process.kill("TERM", pid) } # Maybe make this configurable to allow the server to continue after exit
+
+      at_exit do
+        begin
+          Process.kill("TERM", pid) # Maybe make this configurable to allow the server to continue after exit
+        rescue Errno::ESRCH
+        end
+        cleanup_files.each { |file| File.delete(file) }
+      end
+
       pid
     end
   end

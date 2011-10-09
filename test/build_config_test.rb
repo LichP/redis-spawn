@@ -1,3 +1,4 @@
+require File.expand_path("./build_config_helper", File.dirname(__FILE__))
 require File.expand_path("./helper", File.dirname(__FILE__))
 
 test "build_config_line" do
