@@ -24,7 +24,12 @@ class Redis
       activerehashing:          "yes"
     }
     
-    # @return a fully populated server configuration hash for the passed options
+    # Return a server configuration hash with passed options merged with
+    # defaults
+    #
+    # @param [Hash] server_opts: the options to override defaults with
+    # 
+    # @return a fully populated server configuration hash
     def self.full_config_hash(server_opts = {})
       @server_config_defaults.merge(server_opts)
     end
