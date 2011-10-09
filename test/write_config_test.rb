@@ -20,5 +20,6 @@ test "write_config" do |params|
     assert Dir.exist?(params[:server_opts][:dir])
   ensure
     Dir.rmdir(params[:server_opts][:dir])
+    File.delete(params[:filename])
   end
 end
