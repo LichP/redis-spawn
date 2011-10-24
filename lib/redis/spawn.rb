@@ -54,7 +54,7 @@ class Redis
     #
     # @return [SpawnServer] instance corresponding to the spawned server
     def self.spawn(supplied_opts = {})
-    
+      self.new(supplied_opts)
     end
     
     attr_reader :opts, :supplied_opts, :server_opts, :pid
@@ -129,6 +129,10 @@ class Redis
       pid
     end
     
+    # Attribute write for server opts: merges supplied opts with defaults
+    # to create fully populated server opts
+    #
+    # @param [Hash] opts: partially populated server options hash
     def server_opts=(opts)
       @server_opts = self.class.default_server_opts.merge(opts)
     end
@@ -159,12 +163,17 @@ class Redis
       config_data
     end
 
+    # Clean up server files associated with this instance. Expects
+    # #opts[:cleanup_files] to already be set up
     def cleanup_files
       files_from_symbols(opts[:cleanup_files]) do |file|
         File.exist?(file) && File.delete(file)
       end
     end
 
+    # Iterates over the supplied symbols and yields corresponding filenames
+    #
+    # @param [Array] file_syms: array of symbols to iterate over
     def files_from_symbols(file_syms)
       file_syms.each do |file_sym|
         yield case file_sym
