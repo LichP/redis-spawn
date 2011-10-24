@@ -1,8 +1,8 @@
 require "redis"
 
 class Redis
-  module SpawnServer
-    @server_config_defaults = {
+  class SpawnServer
+    @_default_server_opts = {
       port:                     "0",
       bind:                     "127.0.0.1",
       unixsocket:               "/tmp/redis-spawned.#{Process.pid}.sock",
@@ -23,15 +23,15 @@ class Redis
       set_max_intset_entries:   "512",
       activerehashing:          "yes"
     }
+
+    @_running_servers = {}
     
-    # Return a server configuration hash with passed options merged with
-    # defaults
-    #
-    # @param [Hash] server_opts: the options to override defaults with
-    # 
-    # @return a fully populated server configuration hash
-    def self.full_config_hash(server_opts = {})
-      @server_config_defaults.merge(server_opts)
+    def self.default_server_opts
+      @_default_server_opts
+    end
+
+    def self.default_server_opts=(new_defaults_hash)
+      @_default_server_opts = new_defaults_hash
     end
 
     # Build a configuration file line
@@ -46,96 +46,137 @@ class Redis
       key.to_s.gsub(/_/, "-") + " " + value.to_s
     end
 
-    # Build configuration file data from supplied options and defauls
-    #
-    # @param [Hash] server_opts: Hash of server configuration options which
-    #                            override the defaults
-    #
-    # @return Redis server compatible configuration file data
-    def self.build_config(server_opts = {})
-      config_data = ""
-      full_config_hash(server_opts).each do |key, value|
-        if value.kind_of?(Array)
-          value.each { |subvalue| config_data << build_config_line(key, subvalue) << "\n" }
-        else
-          config_data << build_config_line(key, value) << "\n"
-        end
-      end
-      config_data
-    end
-
-    # Write a Redis configuration file to disk and ensure the directory named
-    # in the 'dir' server parameter exists
-    #
-    # @param [String] filename: The name of the config file
-    # @param [Hash] server_opts: Hash of server configuration options which
-    #                            override the defaults
-    #
-    # @return the name of the written file
-    def self.write_config(filename, server_opts = {})
-      File.open(filename, "w") do |file|
-        file.write(build_config(server_opts))
-      end
-      Dir.mkdir(full_config_hash(server_opts)[:dir]) unless Dir.exists?(full_config_hash(server_opts)[:dir])
-      filename
-    end
-
     # Spawn a Redis server configured with the supplied options. By default,
     # the spawned server will be a child of the current process and won't
     # daemonize (@todo allow daemonization)
     #
-    # @param supplied_opts: the server options
+    # @param supplied_opts: options for this server including any configuration overrides
     #
-    # @return pid of the spawned server
+    # @return [SpawnServer] instance corresponding to the spawned server
     def self.spawn(supplied_opts = {})
+    
+    end
+    
+    attr_reader :opts, :supplied_opts, :server_opts, :pid
+
+    def initialize(supplied_opts = {})
       default_opts = {
         generated_config_file: "/tmp/redis-spawned.#{Process.pid}.config",
         cleanup_files:         [:socket, :log, :config],
-        server_opts:           {}
+        server_opts:           {},
+        start:                 true
       }
-      opts = default_opts.merge(supplied_opts)
+      @supplied_opts = supplied_opts
+      @opts = default_opts.merge(supplied_opts)
+      self.server_opts = opts[:server_opts]
       
+      @pid = opts[:start] ? self.start : 0
+
+      # Return the instance
+      self
+    end
+    
+    # Prepare a redis configuration file then start the server
+    #
+    # @return pid of the server
+    def start
       # If config_file is passed in opts use it as the name of the config file.
       # Otherwise, generate our own
-      config_file = if opts.has_key?(:config_file)
+      @config_file = if opts.has_key?(:config_file)
         # Don't attempt to cleanup files when supplied with pre-existing
         # config file unless specifically asked
         opts[:cleanup_files] = [] unless supplied_opts.has_key?(:cleanup_files)
         opts[:config_file]
       else
-        write_config(opts[:generated_config_file], opts[:server_opts])
+        self.write_config
       end
       
-      # Get the filenames of files we need to clean up afterwards
-      # @todo Should break this out in to a separate method
-      cleanup_files = opts[:cleanup_files].map do |file_sym|
-        case file_sym
-          when :socket
-            full_config_hash(opts[:server_opts])[:unixsocket]
-          when :log
-            full_config_hash(opts[:server_opts])[:logfile]
-          when :config
-            config_file
-        end
+      # Ensure the data directory exists
+      Dir.exists?(self.server_opts[:dir]) || Dir.mkdir(self.server_opts[:dir])
+
+      # Spawn the redis server for this instance
+      self.spawn
+    end
+    
+    # Spawn a redis server. Only call this function once a config file exists
+    # and is specified
+    #
+    # @return the pid of the spawned server
+    def spawn
+      # Abort if there's no config file
+      unless @config_file && File.exist?(@config_file)
+        raise "Config file #{@config_file.inspect} not found"
       end
-      
+   
       # Make sure we clean up after our children and avoid a zombie invasion
       trap("CLD") do
         pid = Process.wait
       end
 
-      pid = fork { exec("redis-server #{config_file}") }
+      # Start the server
+      pid = fork { exec("redis-server #{@config_file}") }
       #logger.info("Spawned redis server with PID #{pid}")
 
       at_exit do
         begin
           Process.kill("TERM", pid) # Maybe make this configurable to allow the server to continue after exit
         rescue Errno::ESRCH
+          # Already dead - do nothing
         end
-        cleanup_files.each { |file| File.delete(file) }
+        self.cleanup_files
       end
-
+      
       pid
     end
+    
+    def server_opts=(opts)
+      @server_opts = self.class.default_server_opts.merge(opts)
+    end
+
+    # Write the Redis configuration file to disk.
+    #
+    # @return the name of the written file
+    def write_config
+      File.open(self.opts[:generated_config_file], "w") do |file|
+        ## @todo Migrate class based build_config to instance based build_config
+        file.write(self.build_config)
+      end
+      self.opts[:generated_config_file]
+    end
+
+    # Build configuration file data
+    #
+    # @return Redis server compatible configuration file data
+    def build_config
+      config_data = ""
+      self.server_opts.each do |key, value|
+        if value.kind_of?(Array)
+          value.each { |subvalue| config_data << self.class.build_config_line(key, subvalue) << "\n" }
+        else
+          config_data << self.class.build_config_line(key, value) << "\n"
+        end
+      end
+      config_data
+    end
+
+    def cleanup_files
+      files_from_symbols(opts[:cleanup_files]) do |file|
+        File.exist?(file) && File.delete(file)
+      end
+    end
+
+    def files_from_symbols(file_syms)
+      file_syms.each do |file_sym|
+        yield case file_sym
+          when :socket
+            server_opts[:unixsocket]
+          when :log
+            server_opts[:logfile]
+          when :config
+            @config_file || opts[:generated_config_file]
+        end
+      end
+    end
+
   end
 end

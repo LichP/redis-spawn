@@ -35,7 +35,7 @@ TEST_CONF_END
 end
 
 test "build_config with defaults" do
-  assert @test_config_defaults == Redis::SpawnServer.build_config
+  assert @test_config_defaults == Redis::SpawnServer.new(start: false).build_config
 end
 
 setup do
@@ -66,12 +66,15 @@ TEST_CONF_END
 end
   
 test "build_config with overrides" do
-  assert @test_config_defaults == Redis::SpawnServer.build_config(unixsocket:     "/tmp/redis-spawned.override.sock",
-                                                                  logfile:        "/tmp/redis-spawned.override.log",
-                                                                  databases:      8,
-                                                                  save:           ["900 1", "300 10", "100 1000", "60 10000"],
-                                                                  rdbcompression: "no",
-                                                                  dir:            "/tmp/redis-spawned.override.data")
+  overrides = {
+    unixsocket:     "/tmp/redis-spawned.override.sock",
+    logfile:        "/tmp/redis-spawned.override.log",
+    databases:      8,
+    save:           ["900 1", "300 10", "100 1000", "60 10000"],
+    rdbcompression: "no",
+    dir:            "/tmp/redis-spawned.override.data"
+  }
+  assert @test_config_defaults == Redis::SpawnServer.new(start: false, server_opts: overrides).build_config
 end
 
   
