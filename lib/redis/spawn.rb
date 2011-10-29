@@ -70,7 +70,7 @@ class Redis
       @opts = default_opts.merge(supplied_opts)
       self.server_opts = opts[:server_opts]
       
-      @pid = opts[:start] ? self.start : 0
+      opts[:start] ? self.start : 0
 
       # Return the instance
       self
@@ -114,20 +114,38 @@ class Redis
       end
 
       # Start the server
-      pid = fork { exec("redis-server #{@config_file}") }
+      @pid = fork { exec("redis-server #{@config_file}") }
       #logger.info("Spawned redis server with PID #{pid}")
 
       at_exit do
-        begin
-          Process.kill("TERM", pid) # Maybe make this configurable to allow the server to continue after exit
-        rescue Errno::ESRCH
-          # Already dead - do nothing
-        end
-        self.cleanup_files
+        # Maybe make this configurable to allow the server to continue after exit
+        self.shutdown!
       end
       
-      pid
+      self.pid
     end
+    
+    def started?
+      self.pid ? true : false
+    end
+    
+    def shutdown
+      if self.started?
+        self.shutdown!
+      else
+        nil
+      end
+    end
+    
+    def shutdown!
+      Process.kill("TERM", self.pid)
+    rescue Errno::ESRCH
+      # Already dead - do nothing
+      nil
+    ensure
+      @pid = nil
+      self.cleanup_files      
+    end    
     
     # Attribute write for server opts: merges supplied opts with defaults
     # to create fully populated server opts
@@ -185,6 +203,10 @@ class Redis
             @config_file || opts[:generated_config_file]
         end
       end
+    end
+
+    def socket
+      self.server_opts[:unixsocket]
     end
 
   end
