@@ -4,7 +4,7 @@ Gem::Specification.new do |s|
   s.name = "redis-spawn"
   s.version = Redis::SpawnServer::VERSION
   s.summary = %{An extension to redis-rb to facilitate spawning a redis-server specifically for your app.}
-  s.description = %Q{Insert something more verbose than the summary here.}
+  s.description = %Q{redis-spawn allows you to manage your own redis-server instances from within your Ruby application.}
   s.authors = ["Phil Stewart"]
   s.email = ["phil.stewart@lichp.co.uk"]
   s.homepage = "http://github.com/lichp/redis-spawn"
