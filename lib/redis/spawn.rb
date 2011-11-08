@@ -214,4 +214,36 @@ class Redis
     end
 
   end
+  
+  # Convenience wrapper for Redis::SpawnServer.new
+  #
+  # @param supplied_opts: options for this server including any configuration overrides
+  #
+  # @return [Redis::SpawnServer] instance corresponding to the spawned server
+  def self.spawn(supplied_opts = {})
+    SpawnServer.new(supplied_opts)
+  end
+  
+  # Spawn a new redis-server with supplied options and connect to it. Has the
+  # side-effect of setting instance variable @_redis_spawnserver_instance with
+  # the spawned server instance
+  #
+  # @param supplied_opts: options for this server including any configuration overrides
+  #
+  # @return [Redis] a redis-rb connection to the newly spawned redis-server
+  def self.spawn_and_connect(supplied_opts = {})
+    redis_spawnserver_instance = SpawnServer.new(supplied_opts)
+    redis_instance = self.connect(:path => redis_spawnserver_instance.socket)
+    redis_instance.instance_variable_set(:@_redis_spawnserver_instance, redis_spawnserver_instance)
+    redis_instance
+  end
+  
+  # Accessor for the spawned server instance created by Redis.spawn_and_connect
+  def spawned_server_instance
+    if self.instance_variables.include?(:@_redis_spawnserver_instance)
+      @_redis_spawnserver_instance
+    else
+      nil
+    end
+  end
 end

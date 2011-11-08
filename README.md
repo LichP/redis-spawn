@@ -161,12 +161,48 @@ At present, there is no built in mechanism for cleaning up the data directory
 This allows you to prevent the server from automatically being started, e.g.
 
 ```ruby
-    # Don't want to start striaght away
-    my_server = Redis::SpawnServer(:start => false)
+    # Don't want to start straight away
+    my_server = Redis::SpawnServer.new(:start => false)
     # ...
     # Now we're ready to start
     my_server.start
 ```
+
+### Extensions to redis-rb
+
+Three new methods are defined in the Redis class: Redis.spawn,
+Redis.spawn_and_connect, and Redis#spawned_server_instance. Redis.spawn is
+simply a convenience wrapper for Redis::SpawnServer.new:
+
+```ruby
+    my_server = Redis.spawn(opts)
+```
+
+is the same as the slightly more verbose:
+
+```ruby
+    my_server = Redis::SpawnServer.new(opts)
+```
+
+Redis.spawn_and_connect spawns a new server and returns a connection to it:
+
+```ruby
+    spawned_connection = Redis.spawn_and_connect
+    => #<Redis:0x00000002d5e470>
+```
+
+The method takes the same option parameters as Redis::SpawnServer.new.  One
+question you might ask is since you're returned a Redis instance, what
+happens to the Redis:SpawnServer instance?  The answer is that it is stored
+in the Redis instance, and you can get it through the
+Redis#spawned_server_instance accessor:
+
+```ruby
+    spawned_connection.spawned_server_instance
+    => #<Redis::SpawnServer:0x00000002683290>
+    spawned_connection.spawned_server_instance.pid
+    => 10633
+````
 
 Contact and Contributing
 ------------------------
