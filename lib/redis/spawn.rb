@@ -125,10 +125,12 @@ class Redis
       self.pid
     end
     
+    # Check whether the server is stated by checking if a value is assigned to @pid
     def started?
       self.pid ? true : false
     end
     
+    # Shutdown the spawned redis-server if it is running
     def shutdown
       if self.started?
         self.shutdown!
@@ -137,6 +139,7 @@ class Redis
       end
     end
     
+    # Forcibly shutdown the spawned redis-server. Used internally by #shutdown.
     def shutdown!
       Process.kill("TERM", self.pid)
     rescue Errno::ESRCH
@@ -205,6 +208,7 @@ class Redis
       end
     end
 
+    # Shortcut for getting name of the configured unix socket file
     def socket
       self.server_opts[:unixsocket]
     end
