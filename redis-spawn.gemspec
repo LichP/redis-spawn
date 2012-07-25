@@ -17,6 +17,6 @@ Gem::Specification.new do |s|
     "test/**/*.rb"
   ]
 
-  s.add_dependency "redis", "~> 2.0"
+  s.add_dependency "redis", "> 2.0"
   s.add_development_dependency "cutest", "~> 0.1"
 end

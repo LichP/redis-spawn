@@ -233,7 +233,7 @@ class Redis
   # @return [Redis] a redis-rb connection to the newly spawned redis-server
   def self.spawn_and_connect(supplied_opts = {})
     redis_spawnserver_instance = SpawnServer.new(supplied_opts)
-    redis_instance = self.connect(:path => redis_spawnserver_instance.socket)
+    redis_instance = self.new(:path => redis_spawnserver_instance.socket)
     redis_instance.instance_variable_set(:@_redis_spawnserver_instance, redis_spawnserver_instance)
     redis_instance
   end
