@@ -48,7 +48,7 @@ When starting a server with default options, redis-spawn will create a Redis
 config file named `/tmp/redis-spawned.[pid of parent process].config`, and
 populate it with the default server options. For the most part, these
 defaults correspond to the defaults you expect to find in a vanilla
-`redis.conf`, with a few notable exceptions:
+version 2.6 `redis.conf`, with a few notable exceptions:
 
  * `dir` defaults to `/tmp/redis-spawned.[ppid].data`
  * `logfile` defaults to `"/tmp/redis-spawned.[ppid].log`
@@ -59,6 +59,10 @@ defaults correspond to the defaults you expect to find in a vanilla
 
 In all cases, [ppid] corresponds to the PID of the Ruby process that spawns
 the server.
+
+Note that the config defaults were changed in version 0.0.7 in line with
+Redis 2.6. If you're using an earlier version of Redis, you may need to
+override the defaults or use version 0.0.6 of the gem.
 
 ### Connecting
 
