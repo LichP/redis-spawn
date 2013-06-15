@@ -79,6 +79,12 @@ Or from the command line:
     $ redis-cli -s /tmp/redis-spawned.7457.sock
 ```
 
+Ohm users can connect like this:
+
+```ruby
+    Ohm.connect(:path => my_server_instance.socket)
+```
+
 ### Shutdown and Cleanup
 
 Spawned servers will automatically shutdown when your program exits. You can
