@@ -6,6 +6,7 @@ require 'redis/spawn'
 task :test do
   require 'cutest'
   
+  PROCESS_PID = Process.pid.to_s
   Cutest.run(Dir["./test/**/*_test.rb"])
 end
 

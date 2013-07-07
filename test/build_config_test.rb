@@ -1,4 +1,3 @@
-require File.expand_path("./build_config_helper", File.dirname(__FILE__))
 require File.expand_path("./helper", File.dirname(__FILE__))
 
 test "build_config_line" do
@@ -12,25 +11,36 @@ setup do
   @test_config_defaults = <<TEST_CONF_END
 port 0
 bind 127.0.0.1
-unixsocket /tmp/redis-spawned.0.sock
+unixsocket /tmp/redis-spawned.#{PROCESS_PID}.sock
 loglevel notice
-logfile /tmp/redis-spawned.0.log
+logfile /tmp/redis-spawned.#{PROCESS_PID}.log
+timeout 0
 databases 16
 save 900 1
 save 300 10
 save 60 10000
+stop-writes-on-bgsave-error yes
 rdbcompression yes
+rdbchecksum yes
 dbfilename dump.rdb
-dir /tmp/redis-spawned.0.data
+dir /tmp/redis-spawned.#{PROCESS_PID}.data
 appendonly no
 appendfsync everysec
-vm-enabled no
-hash-max-zipmap-entries 512
-hash-max-zipmap-value 64
+no-appendfsync-on-rewrite no
+lua-time-limit 5000
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
 list-max-ziplist-entries 512
 list-max-ziplist-value 64
 set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
 activerehashing yes
+client-output-buffer-limit normal 0 0 0
+client-output-buffer-limit slave 256mb 64mb 60
+client-output-buffer-limit pubsub 32mb 8mb 60
 TEST_CONF_END
 end
 
@@ -39,29 +49,40 @@ test "build_config with defaults" do
 end
 
 setup do
-  @test_config_defaults = <<TEST_CONF_END
+  @test_config_overrides = <<TEST_CONF_END
 port 0
 bind 127.0.0.1
 unixsocket /tmp/redis-spawned.override.sock
 loglevel notice
 logfile /tmp/redis-spawned.override.log
+timeout 0
 databases 8
 save 900 1
 save 300 10
 save 100 1000
 save 60 10000
+stop-writes-on-bgsave-error yes
 rdbcompression no
+rdbchecksum yes
 dbfilename dump.rdb
 dir /tmp/redis-spawned.override.data
 appendonly no
 appendfsync everysec
-vm-enabled no
-hash-max-zipmap-entries 512
-hash-max-zipmap-value 64
+no-appendfsync-on-rewrite no
+lua-time-limit 5000
+slowlog-log-slower-than 10000
+slowlog-max-len 128
+hash-max-ziplist-entries 512
+hash-max-ziplist-value 64
 list-max-ziplist-entries 512
 list-max-ziplist-value 64
 set-max-intset-entries 512
+zset-max-ziplist-entries 128
+zset-max-ziplist-value 64
 activerehashing yes
+client-output-buffer-limit normal 0 0 0
+client-output-buffer-limit slave 256mb 64mb 60
+client-output-buffer-limit pubsub 32mb 8mb 60
 TEST_CONF_END
 end
   
@@ -74,7 +95,7 @@ test "build_config with overrides" do
     rdbcompression: "no",
     dir:            "/tmp/redis-spawned.override.data"
   }
-  assert @test_config_defaults == Redis::SpawnServer.new(start: false, server_opts: overrides).build_config
+  assert @test_config_overrides == Redis::SpawnServer.new(start: false, server_opts: overrides).build_config
 end
 
   
