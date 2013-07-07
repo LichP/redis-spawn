@@ -119,7 +119,7 @@ class Redis
    
       # Make sure we clean up after our children and avoid a zombie invasion
       trap("CLD") do
-        pid = Process.wait
+        pid = Process.wait(-1, Process::WNOHANG)
       end
 
       # Start the server
@@ -129,6 +129,7 @@ class Redis
       at_exit do
         # Maybe make this configurable to allow the server to continue after exit
         self.shutdown!
+        Process.wait(@pid,  Process::WNOHANG) if (@pid && @pid != 0)
       end
       
       self.pid
